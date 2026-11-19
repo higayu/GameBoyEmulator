@@ -39,9 +39,7 @@ impl CartridgeHeader {
         let mut checksum: u8 = 0;
 
         for &byte in &rom[0x0134..=0x014C] {
-            checksum = checksum
-                .wrapping_sub(byte)
-                .wrapping_sub(1);
+            checksum = checksum.wrapping_sub(byte).wrapping_sub(1);
         }
 
         Ok(Self {

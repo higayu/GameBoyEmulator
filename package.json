@@ -8,10 +8,16 @@
     "build": "vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "wasm:dev": "wasm-pack build ./emulator-wasm --target web --out-dir ../src/wasm --dev",
-    "wasm:build": "wasm-pack build ./emulator-wasm --target web --out-dir ../src/wasm --release",
+
+    "wasm:clean": "node -e \"require('fs').rmSync('src/wasm', { recursive: true, force: true })\"",
+
+    "wasm:dev": "npm run wasm:clean && wasm-pack build ./emulator-wasm --target web --out-dir ../src/wasm --dev",
+
+    "wasm:build": "npm run wasm:clean && wasm-pack build ./emulator-wasm --target web --out-dir ../src/wasm --release",
+
     "predev": "npm run wasm:dev",
-    "prebuild": "npm run wasm:build"
+    "prebuild": "npm run wasm:build",
+    "wasm:rebuild": "cargo clean --manifest-path emulator-wasm/Cargo.toml && npm run wasm:dev"
   },
   "dependencies": {
     "react": "^19.1.0",

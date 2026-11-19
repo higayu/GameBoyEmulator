@@ -1,158 +1,17 @@
-import { useEffect, useState } from "react";
-
-import init, {
-  get_version,
-  inspect_rom,
-} from "./wasm/emulator_wasm.js";
-
-import "./App.css";
-
-function App() {
-  const [ready, setReady] = useState(false);
-  const [version, setVersion] = useState("");
-  const [romInfo, setRomInfo] = useState(null);
-  const [fileName, setFileName] = useState("");
-  const [error, setError] = useState("");
-
-  // WebAssemblyの初期化
-  useEffect(() => {
-    async function initialize() {
-      try {
-        await init();
-
-        setVersion(get_version());
-        setReady(true);
-      } catch (error) {
-        setError(String(error));
-      }
-    }
-
-    initialize();
-  }, []);
-
-  // ROMファイルの読み込み
-  async function handleRomChange(event) {
-    const file = event.target.files?.[0];
-
-    if (!file || !ready) {
-      return;
-    }
-
-    setError("");
-    setRomInfo(null);
-    setFileName(file.name);
-
-    try {
-      // ROMをバイナリデータとして取得
-      const buffer = await file.arrayBuffer();
-      const bytes = new Uint8Array(buffer);
-
-      // Rust側でROMヘッダーを解析
-      const result = inspect_rom(bytes);
-
-      setRomInfo(result);
-    } catch (error) {
-      setError(String(error));
-    } finally {
-      // 同じファイルを再選択できるようにする
-      event.target.value = "";
-    }
-  }
-
-  return (
-    <main className="app">
-      <header className="header">
-        <h1>GB Emulator</h1>
-        <span>Version {version || "---"}</span>
-      </header>
-
-      <div className="toolbar">
-        <label className="file-button">
-          ROMを開く
-
-          <input
-            type="file"
-            accept=".gb,.gbc"
-            disabled={!ready}
-            onChange={handleRomChange}
-          />
-        </label>
-
-        <span className={ready ? "online" : "offline"}>
-          {ready ? "WASM Ready" : "Initializing..."}
-        </span>
-      </div>
-
-      <section className="workspace">
-        <div className="game-panel">
-          <canvas width={160} height={144} />
-          <p>160 × 144 pixels</p>
-        </div>
-
-        <aside className="info-panel">
-          <h2>ROM Information</h2>
-
-          {!romInfo && (
-            <p>ROMファイルを選択してください。</p>
-          )}
-
-          {romInfo && (
-            <dl>
-              <dt>ファイル名</dt>
-              <dd>{fileName}</dd>
-
-              <dt>ゲームタイトル</dt>
-              <dd>{romInfo.title}</dd>
-
-              <dt>対応ハードウェア</dt>
-              <dd>{romInfo.hardware}</dd>
-
-              <dt>カートリッジ</dt>
-              <dd>{romInfo.cartridge_type}</dd>
-
-              <dt>カートリッジタイプコード</dt>
-              <dd>
-                0x{romInfo.cartridge_type_code
-                  .toString(16)
-                  .padStart(2, "0")
-                  .toUpperCase()}
-              </dd>
-
-              <dt>ROM容量</dt>
-              <dd>{romInfo.rom_size / 1024} KB</dd>
-
-              <dt>ROMサイズコード</dt>
-              <dd>
-                0x{romInfo.rom_size_code
-                  .toString(16)
-                  .padStart(2, "0")
-                  .toUpperCase()}
-              </dd>
-
-              <dt>RAMサイズコード</dt>
-              <dd>
-                0x{romInfo.ram_size_code
-                  .toString(16)
-                  .padStart(2, "0")
-                  .toUpperCase()}
-              </dd>
-
-              <dt>ヘッダーチェックサム</dt>
-              <dd>
-                {romInfo.header_checksum_valid
-                  ? "正常"
-                  : "不一致"}
-              </dd>
-            </dl>
-          )}
-
-          {error && (
-            <p className="error">{error}</p>
-          )}
-        </aside>
-      </section>
-    </main>
-  );
+import {useEffect,useRef,useState} from 'react';
+import './App.css';
+const hex=(v,n=2)=>'0x'+v.toString(16).toUpperCase().padStart(n,'0');
+export default function App(){
+ const canvas=useRef(null), keys=useRef(0);
+ const [running,setRunning]=useState(false);
+ const api=useRef(null), machine=useRef(null), bytes=useRef(null);
+ const [ready,setReady]=useState(false),[version,setVersion]=useState(''),[info,setInfo]=useState(null),[name,setName]=useState(''),[cpu,setCpu]=useState(null),[error,setError]=useState(''),[log,setLog]=useState([]),[stopped,setStopped]=useState(false);
+ useEffect(()=>{let active=true; (async()=>{try{const w=await import('./wasm/emulator_wasm.js');await w.default();if(active){api.current=w;setVersion(w.get_version());setReady(true)}}catch(e){if(active)setError(String(e))}})();return()=>{active=false;machine.current?.free();machine.current=null}},[]);
+ function draw(){const m=machine.current;const c=canvas.current;if(m&&c){c.getContext("2d").putImageData(new ImageData(new Uint8ClampedArray(m.framebuffer()),160,144),0,0)}}
+ useEffect(()=>{let id;let previous=0;function frame(time){if(time-previous>=16){previous=time;try{const m=machine.current;if(!m)return;m.run_frame();draw();setCpu(m.snapshot())}catch(e){setError(String(e));setStopped(true);setRunning(false);return}}id=requestAnimationFrame(frame)}if(running)id=requestAnimationFrame(frame);return()=>cancelAnimationFrame(id)},[running]);
+ useEffect(()=>{const map={ArrowRight:1,ArrowLeft:2,ArrowUp:4,ArrowDown:8,z:16,x:32,Shift:64,Enter:128};function key(e){const b=map[e.key]??map[e.key.toLowerCase()];if(!b||e.target?.tagName==="INPUT")return;e.preventDefault();keys.current=e.type==="keydown"?keys.current|b:keys.current&~b;machine.current?.set_keys(keys.current)}function clear(){keys.current=0;machine.current?.set_keys(0)}window.addEventListener("keydown",key);window.addEventListener("keyup",key);window.addEventListener("blur",clear);return()=>{window.removeEventListener("keydown",key);window.removeEventListener("keyup",key);window.removeEventListener("blur",clear)}},[]);
+ function reset(data=bytes.current){setRunning(false);machine.current?.free();machine.current=null;setCpu(null);setLog([]);setStopped(false);setError('');try{machine.current=new api.current.GbEmulator(data);setCpu(machine.current.snapshot());draw()}catch(e){setError(String(e));setStopped(true)}}
+ async function load(e){setRunning(false);const file=e.target.files?.[0];e.target.value='';if(!file)return;setInfo(null);setName(file.name);bytes.current=null;machine.current?.free();machine.current=null;setCpu(null);setLog([]);setError('');try{const data=new Uint8Array(await file.arrayBuffer());setInfo(api.current.inspect_rom(data));bytes.current=data;reset(data)}catch(err){setError(String(err))}}
+ function step(count=1){const m=machine.current;if(!m||stopped)return;const lines=[];try{for(let i=0;i<count;i++)lines.push(m.step())}catch(e){setError(String(e));setStopped(true)}finally{setCpu(m.snapshot());draw();setLog(old=>[...old,...lines].slice(-100))}}
+ return <main className="emulator"><header><h1>GB Emulator</h1><span>Version {version} · {ready?'WASM Ready':'Loading'}</span></header><nav><label>ROMを開く <input type="file" accept=".gb,.gbc" disabled={!ready} onChange={load}/></label><button disabled={!cpu||stopped||running} onClick={()=>step()}>Step</button><button disabled={!cpu||stopped||running} onClick={()=>step(100)}>100 Steps</button><button disabled={!cpu||stopped} onClick={()=>setRunning(v=>!v)}>{running?"Pause":"Run"}</button><button disabled={!bytes.current} onClick={()=>reset()}>Reset</button></nav>{error&&<p role="alert" className="error">{error}</p>}<div className="workspace"><section><canvas ref={canvas} width="160" height="144" style={{imageRendering:"pixelated"}}/><p>160 × 144 · 矢印 / Z: A / X: B / Enter: Start / Shift: Select</p><h2>Instruction Log</h2><pre>{log.join('\n')||'Waiting for execution...'}</pre></section><aside><h2>CPU Debugger</h2>{cpu?<><div className="registers">{['a','f','b','c','d','e','h','l','pc','sp','opcode'].map(k=><div key={k}>{k.toUpperCase()} <b>{hex(cpu[k],['pc','sp'].includes(k)?4:2)}</b></div>)}</div><p>Flags: {['Z','N','H','C'].map((f,i)=>`${f}=${(cpu.f>>(7-i))&1}`).join('  ')}</p><p>Cycles: {cpu.cycles}</p></>:<p>ROMを選択してください。</p>}<h2>ROM Information</h2>{info&&<dl>{[['ファイル名',name],['ゲームタイトル',info.title],['対応ハードウェア',info.hardware],['カートリッジ',info.cartridge_type],['カートリッジタイプコード',hex(info.cartridge_type_code)],['ROM容量',`${info.rom_size/1024} KB`],['ROMサイズコード',hex(info.rom_size_code)],['RAMサイズコード',hex(info.ram_size_code)],['チェックサム',info.header_checksum_valid?'正常':'不一致']].map(([k,v])=><div key={k}><dt>{k}</dt><dd>{v}</dd></div>)}</dl>}</aside></div></main>
 }
-
-export default App;
