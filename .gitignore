@@ -1,0 +1,94 @@
+# ========================================
+# Logs
+# ========================================
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ========================================
+# Node.js / React / Vite
+# ========================================
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.local
+
+# ========================================
+# Rust / Cargo
+# ========================================
+target/
+**/*.rs.bk
+*.pdb
+
+# ========================================
+# Tauri
+# ========================================
+src-tauri/target/
+src-tauri/gen/android/.gradle/
+src-tauri/gen/android/local.properties
+src-tauri/gen/android/app/build/
+
+# ========================================
+# WebAssembly（自動生成ファイル）
+# ========================================
+/src/wasm/
+/emulator-wasm/pkg/
+
+# ========================================
+# Environment variables
+# ========================================
+.env
+.env.*
+!.env.example
+
+# ========================================
+# Game ROMs
+# ========================================
+*.gb
+*.gbc
+*.gba
+*.sgb
+/roms/
+
+# ========================================
+# Emulator save data
+# ========================================
+*.sav
+*.srm
+*.rtc
+*.state
+*.state.*
+/saves/
+/savestates/
+
+# ========================================
+# Build / Release files
+# ========================================
+*.exe
+*.msi
+*.dmg
+*.AppImage
+
+# ========================================
+# Editor directories and files
+# ========================================
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ========================================
+# OS generated files
+# ========================================
+Thumbs.db
+Desktop.ini
